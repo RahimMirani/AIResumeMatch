@@ -74,7 +74,7 @@ This tool compares a user's resume to a job description and provides a similarit
 ---
 
 ## Tech Stack
-- **Backend**: Python (FastAPI/Flask)
+- **Backend**: Python (Flask)
 - **NLP**: spaCy, Hugging Face Transformers, Gensim
 - **PDF Parsing**: PyPDF2, pdfminer
 - **Web Scraping**: BeautifulSoup, lxml
