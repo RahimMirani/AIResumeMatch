@@ -1,15 +1,16 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, url_for
 from werkzeug.utils import secure_filename
 import os
 from pdf_parser import parse_pdf
 
-app = Flask(__name__)
+app = Flask(__name__)  # Reset to default configuration
 
 # Configure upload settings
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['STATIC_FOLDER'] = 'static'  # Add this line
 
 # Create uploads directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)

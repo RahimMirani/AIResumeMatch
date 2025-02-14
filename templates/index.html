@@ -4,31 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resume Parser</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .upload-container {
-            border: 2px dashed #ccc;
-            padding: 20px;
-            text-align: center;
-            margin: 20px 0;
-        }
-        .result {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            display: none;
-        }
-        .error {
-            color: red;
-            margin-top: 10px;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="/static/css/styles.css">
 </head>
 <body>
     <h1>Resume Parser</h1>
@@ -39,7 +15,7 @@
         </form>
     </div>
     <div id="result" class="result">
-        <h3>Parsed Result:</h3>
+        <h3>Parsed Resume</h3>
         <pre id="parsedText"></pre>
     </div>
     <div id="error" class="error"></div>
@@ -60,7 +36,9 @@
                 
                 if (response.ok) {
                     document.getElementById('result').style.display = 'block';
-                    document.getElementById('parsedText').textContent = data.parsed_text;
+                    const parsedText = document.getElementById('parsedText');
+                    parsedText.textContent = data.parsed_text;
+                    formatParsedText(parsedText);
                     document.getElementById('error').textContent = '';
                 } else {
                     document.getElementById('error').textContent = data.error || 'Upload failed';
@@ -71,6 +49,21 @@
                 document.getElementById('result').style.display = 'none';
             }
         });
+
+        function formatParsedText(element) {
+            let text = element.textContent;
+            
+            // Format section titles (lines followed by ===)
+            text = text.replace(/^(.+)\n={3,}$/gm, '<h2 class="section-title">$1</h2>');
+            
+            // Format bullet points
+            text = text.replace(/^[•]\s*(.*)/gm, '<div class="bullet-point">• $1</div>');
+            
+            // Add spacing between sections
+            text = text.replace(/\n\n/g, '<br>');
+            
+            element.innerHTML = text;
+        }
     </script>
 </body>
 </html> 
