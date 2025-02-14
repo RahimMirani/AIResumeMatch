@@ -16,7 +16,11 @@
     </div>
     <div id="result" class="result">
         <h3>Parsed Resume</h3>
-        <pre id="parsedText"></pre>
+        <div class="actions">
+            <button id="editMode" class="action-btn">Toggle Edit Mode</button>
+            <button id="saveChanges" class="action-btn" style="display: none;">Save Changes</button>
+        </div>
+        <div id="parsedText" class="editable-content"></div>
     </div>
     <div id="error" class="error"></div>
 

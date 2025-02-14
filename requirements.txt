@@ -1,4 +1,7 @@
 flask==3.0.2
 pdfminer.six==20231228
 python-dotenv==1.0.1
-werkzeug==3.0.1 
+werkzeug==3.0.1
+openai==1.12.0
+deepseek-ai==0.1.0
+aiohttp==3.9.3 

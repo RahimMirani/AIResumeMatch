@@ -1,4 +1,5 @@
 from pdfminer.high_level import extract_text
+from pdfminer.layout import LAParams
 from pdfminer.pdfparser import PDFSyntaxError
 import re
 
@@ -6,7 +7,6 @@ def clean_text(text):
     """Clean and structure the extracted text."""
     # Remove excessive whitespace while preserving important line breaks
     text = re.sub(r'\s*\n\s*\n\s*', '\n\n', text)
-    text = re.sub(r' +', ' ', text)
     
     # Try to identify sections (common resume section titles)
     section_patterns = [
@@ -22,12 +22,8 @@ def clean_text(text):
         r'OBJECTIVE[:\s]'
     ]
     
-    # Add section markers
-    for pattern in section_patterns:
-        text = re.sub(f'({pattern})', r'\n\n\1\n', text, flags=re.IGNORECASE)
-    
     # Process the text line by line
-    lines = text.split('\n')
+    lines = text.splitlines()
     formatted_lines = []
     current_section = ""
     
@@ -45,17 +41,16 @@ def clean_text(text):
             formatted_lines.append("=" * len(line))
         else:
             # Check if line starts with a bullet point or could be a bullet point
-            if line.startswith('•'):
-                formatted_lines.append(line)
-            elif line.startswith('-'):
-                formatted_lines.append(f"• {line[1:].strip()}")
+            if line.startswith('•') or line.startswith('-') or line.startswith('●'):
+                formatted_lines.append(f"• {line.lstrip('•-● ')}")
             elif re.match(r'^\d+\.', line):
                 formatted_lines.append(f"• {line}")
             else:
-                # If line is short, it might be a header
+                # If line is short and uppercase, it might be a header
                 if len(line) < 50 and line.isupper():
                     formatted_lines.append(f"\n{line}")
                 else:
+                    # Preserve any existing line breaks and spacing
                     formatted_lines.append(line)
     
     return '\n'.join(formatted_lines)
@@ -75,8 +70,20 @@ def parse_pdf(file_path):
         FileNotFoundError: If the file doesn't exist
     """
     try:
-        # Extract text from PDF
-        text = extract_text(file_path)
+        # Configure PDF parsing parameters
+        laparams = LAParams(
+            line_margin=0.5,  # Adjust line margin
+            word_margin=0.1,  # Adjust word margin
+            char_margin=2.0,  # Adjust character margin
+            boxes_flow=0.5,   # Adjust text flow between boxes
+            detect_vertical=True  # Better handle vertical text
+        )
+        
+        # Extract text with configured parameters
+        text = extract_text(
+            file_path,
+            laparams=laparams
+        )
         
         # Clean and structure the text
         formatted_text = clean_text(text)
