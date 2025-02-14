@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Parser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-container {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Resume Parser</h1>
+    <div class="upload-container">
+        <form id="uploadForm">
+            <input type="file" name="resume" accept=".pdf" required>
+            <button type="submit">Upload and Parse</button>
+        </form>
+    </div>
+    <div id="result" class="result">
+        <h3>Parsed Result:</h3>
+        <pre id="parsedText"></pre>
+    </div>
+    <div id="error" class="error"></div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            const fileInput = document.querySelector('input[type="file"]');
+            formData.append('resume', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/upload-resume', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('result').style.display = 'block';
+                    document.getElementById('parsedText').textContent = data.parsed_text;
+                    document.getElementById('error').textContent = '';
+                } else {
+                    document.getElementById('error').textContent = data.error || 'Upload failed';
+                    document.getElementById('result').style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('error').textContent = 'Error uploading file';
+                document.getElementById('result').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html> 
