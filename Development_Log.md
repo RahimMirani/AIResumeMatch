@@ -60,3 +60,54 @@
 - Environment variables properly secured
 - Project structure reorganized for better maintainability
 
+## February 16, 2025 - LangChain Integration and Cost Optimization Issues
+
+### Major Changes
+1. Switched from direct Claude API to LangChain
+   - Implemented LangChain for better abstraction
+   - Added JSON output parsing
+   - Created test file for LangChain verification
+
+2. Fixed Various Technical Issues
+   - Resolved async/sync handling in Flask
+   - Fixed file path issues for uploads
+   - Improved error handling for file processing
+   - Updated JSON template escaping in prompts
+
+3. Identified Cost Concerns
+   - Discovered high API costs with Claude-3-opus
+   - Identified need for optimization
+   - Tested basic functionality with simple queries
+
+### Technical Details
+1. LangChain Implementation
+   - Added langchain and langchain-anthropic packages
+   - Created structured JSON parsing system
+   - Implemented proper template formatting
+   - Added async support with proper error handling
+
+2. File Structure Improvements
+   - Fixed upload directory path handling
+   - Added better cleanup for temporary files
+   - Improved error handling for file operations
+
+### Issues Identified
+1. Cost Efficiency
+   - High API costs for basic operations
+   - Need for optimization in API usage
+   - $1 cost for just two test requests
+
+### Next Steps
+1. Implement cost optimization strategies:
+   - Local PDF processing before LLM
+   - Caching system for processed resumes
+   - Consider cheaper model alternatives
+   - Implement batch processing
+   - Optimize prompts for token efficiency
+   - Use local processing where possible
+
+### Notes
+- LangChain integration successful but needs optimization
+- Current implementation works but is cost-prohibitive
+- Need to balance functionality with API costs
+

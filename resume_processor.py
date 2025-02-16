@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langchain.prompts import ChatPromptTemplate
-from langchain.output_parsers import JsonOutputParser
+from langchain_core.output_parsers import JsonOutputParser
 from langchain.schema import StrOutputParser
 
 load_dotenv()
@@ -25,35 +25,35 @@ class ResumeProcessor:
         # Define the prompt template
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a resume parsing expert. Analyze the resume and return a JSON with this structure:
-            {
-                "personal_info": {
+            {{
+                "personal_info": {{
                     "name": "",
-                    "contact": {
+                    "contact": {{
                         "email": "",
                         "phone": "",
                         "location": "",
                         "linkedin": ""
-                    },
+                    }},
                     "summary": ""
-                },
+                }},
                 "sections": [
-                    {
+                    {{
                         "title": "Experience",
                         "entries": [
-                            {
+                            {{
                                 "company": "",
                                 "position": "",
                                 "location": "",
-                                "duration": {
+                                "duration": {{
                                     "start": "",
                                     "end": ""
-                                },
+                                }},
                                 "points": []
-                            }
+                            }}
                         ]
-                    }
+                    }}
                 ]
-            }
+            }}
             Return only valid JSON, no additional text."""),
             ("user", "{text}")
         ])
@@ -101,57 +101,38 @@ class ResumeProcessor:
             html.append(f'<div class="summary"><p>{personal["summary"]}</p></div>')
         html.append('</div>')
         
-        # Main Sections
+        # Experience Section
         for section in structured_data["sections"]:
             html.append(f'<div class="section" data-section="{section["title"].lower()}">')
             html.append(f'<h2>{section["title"]}</h2>')
             
-            if section["title"] == "Skills":
-                # Skills section
-                html.append('<div class="skills-container">')
-                for category, skills in section["categories"].items():
-                    if skills:
-                        html.append(f'<div class="skill-category">')
-                        html.append(f'<h3>{category.title()}</h3>')
-                        html.append('<ul class="skills-list">')
-                        for skill in skills:
-                            html.append(f'<li class="skill-item">{skill}</li>')
-                        html.append('</ul>')
-                        html.append('</div>')
+            for entry in section["entries"]:
+                html.append('<div class="entry">')
+                
+                if entry.get("company"):
+                    html.append(f'<h3>{entry["company"]}</h3>')
+                if entry.get("position"):
+                    html.append(f'<h4>{entry["position"]}</h4>')
+                if entry.get("location"):
+                    html.append(f'<span class="location">{entry["location"]}</span>')
+                
+                # Duration
+                if "duration" in entry:
+                    duration = entry["duration"]
+                    duration_text = f'{duration["start"]} - {duration["end"]}'
+                    html.append(f'<p class="duration">{duration_text}</p>')
+                
+                # Points
+                if entry.get("points"):
+                    html.append('<ul class="points">')
+                    for point in entry["points"]:
+                        html.append(
+                            f'<li class="bullet-point" data-original="{point}">'
+                            f'• {point}</li>'
+                        )
+                    html.append('</ul>')
+                
                 html.append('</div>')
-            else:
-                # Experience and Education sections
-                for entry in section["entries"]:
-                    html.append('<div class="entry">')
-                    
-                    # Header info (company/institution and position/degree)
-                    header_primary = entry.get("company") or entry.get("institution")
-                    header_secondary = entry.get("position") or entry.get("degree")
-                    
-                    if header_primary:
-                        html.append(f'<h3>{header_primary}</h3>')
-                    if header_secondary:
-                        html.append(f'<h4>{header_secondary}</h4>')
-                    
-                    # Duration
-                    if "duration" in entry:
-                        duration = entry["duration"]
-                        duration_text = f'{duration["start"]} - {duration["end"]}'
-                        html.append(f'<p class="duration">{duration_text}</p>')
-                    
-                    # Points/Details
-                    points = entry.get("points") or entry.get("details")
-                    if points:
-                        html.append('<ul class="points">')
-                        for point in points:
-                            html.append(
-                                f'<li class="bullet-point" data-original="{point}">'
-                                f'• {point}</li>'
-                            )
-                        html.append('</ul>')
-                    
-                    html.append('</div>')
-            
             html.append('</div>')
         
         return '\n'.join(html) 
