@@ -19,8 +19,16 @@ app.config['STATIC_FOLDER'] = 'static'
 # Create uploads directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Initialize resume processor
-resume_processor = ResumeProcessor()
+# After app configuration
+if not app.config['CLAUDE_API_KEY']:
+    raise ValueError("Claude API key not found in configuration")
+
+# Initialize resume processor with error handling
+try:
+    resume_processor = ResumeProcessor()
+except ValueError as e:
+    print(f"Error initializing resume processor: {e}")
+    raise
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -51,6 +59,9 @@ def upload_resume():
         # Extract text from PDF
         raw_text = parse_pdf(filepath)
         
+        # Add debug logging
+        print(f"Using API key: {app.config['CLAUDE_API_KEY']}")
+        
         # Process with LLM (using async_to_sync)
         structured_data = async_to_sync(resume_processor.process_resume)(raw_text)
         
@@ -67,6 +78,7 @@ def upload_resume():
         })
     
     except Exception as e:
+        print(f"Error in upload_resume: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

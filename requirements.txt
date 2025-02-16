@@ -2,6 +2,7 @@ flask==3.0.2
 pdfminer.six==20231228
 python-dotenv==1.0.1
 werkzeug==3.0.1
-anthropic==0.7.4
+langchain==0.1.12
+langchain-anthropic==0.0.11
 aiohttp==3.9.3
 asgiref==3.7.2 

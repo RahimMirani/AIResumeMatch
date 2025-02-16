@@ -2,81 +2,72 @@ from typing import Dict, Any
 import json
 import os
 from dotenv import load_dotenv
-from anthropic import Anthropic
-from asgiref.sync import sync_to_async
+from langchain_anthropic import ChatAnthropic
+from langchain.prompts import ChatPromptTemplate
+from langchain.output_parsers import JsonOutputParser
+from langchain.schema import StrOutputParser
 
 load_dotenv()
 
 class ResumeProcessor:
     def __init__(self):
-        self.api_key = os.getenv('CLAUDE_API_KEY')
-        self.client = Anthropic(api_key=self.api_key)
+        # Initialize Claude through LangChain
+        self.llm = ChatAnthropic(
+            model="claude-3-opus-20240229",
+            anthropic_api_key=os.getenv('CLAUDE_API_KEY'),
+            max_tokens=4000,
+            temperature=0.1
+        )
         
-        self.system_prompt = """
-        As a resume parsing expert, analyze the given resume and structure it consistently.
-        Focus on extracting and organizing:
-        1. Personal and contact information
-        2. Professional summary
-        3. Work experience with detailed bullet points
-        4. Education details
-        5. Skills and certifications
+        # Create output parser for JSON
+        self.parser = JsonOutputParser()
         
-        Format the output as JSON with this structure:
-        {
-            "personal_info": {
-                "name": "",
-                "contact": {
-                    "email": "",
-                    "phone": "",
-                    "location": "",
-                    "linkedin": ""
+        # Define the prompt template
+        self.prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a resume parsing expert. Analyze the resume and return a JSON with this structure:
+            {
+                "personal_info": {
+                    "name": "",
+                    "contact": {
+                        "email": "",
+                        "phone": "",
+                        "location": "",
+                        "linkedin": ""
+                    },
+                    "summary": ""
                 },
-                "summary": ""
-            },
-            "sections": [
-                {
-                    "title": "Experience",
-                    "entries": [
-                        {
-                            "company": "",
-                            "position": "",
-                            "location": "",
-                            "duration": {
-                                "start": "",
-                                "end": ""
-                            },
-                            "points": []
-                        }
-                    ]
-                }
-            ]
-        }
+                "sections": [
+                    {
+                        "title": "Experience",
+                        "entries": [
+                            {
+                                "company": "",
+                                "position": "",
+                                "location": "",
+                                "duration": {
+                                    "start": "",
+                                    "end": ""
+                                },
+                                "points": []
+                            }
+                        ]
+                    }
+                ]
+            }
+            Return only valid JSON, no additional text."""),
+            ("user", "{text}")
+        ])
         
-        Return only the JSON, no additional text.
-        """
+        # Create the chain
+        self.chain = self.prompt | self.llm | self.parser
 
     async def process_resume(self, text: str) -> Dict[str, Any]:
-        """Process resume text using Claude API"""
+        """Process resume text using LangChain"""
         try:
-            # Claude's API is synchronous, so we wrap it with sync_to_async
-            response = await sync_to_async(self.client.messages.create)(
-                model="claude-3-opus-20240229",
-                max_tokens=2000,
-                temperature=0.1,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": text}
-                ]
-            )
+            # Process the resume
+            result = await self.chain.ainvoke({"text": text})
+            return result
             
-            # Parse the response content as JSON
-            try:
-                structured_data = json.loads(response.content)
-                return structured_data
-            except json.JSONDecodeError:
-                # If JSON parsing fails, the response might not be properly formatted
-                raise Exception("Failed to parse Claude's response as JSON")
-                
         except Exception as e:
             print(f"Error processing resume: {str(e)}")
             raise
