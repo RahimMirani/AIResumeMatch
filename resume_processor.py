@@ -2,14 +2,15 @@ from typing import Dict, Any
 import json
 import os
 from dotenv import load_dotenv
-import aiohttp
+from anthropic import Anthropic
+from asgiref.sync import sync_to_async
 
 load_dotenv()
 
 class ResumeProcessor:
     def __init__(self):
-        self.api_key = os.getenv('DEEPSEEK_API_KEY')
-        self.api_url = "https://api.deepseek.com/v1/chat/completions"
+        self.api_key = os.getenv('CLAUDE_API_KEY')
+        self.client = Anthropic(api_key=self.api_key)
         
         self.system_prompt = """
         As a resume parsing expert, analyze the given resume and structure it consistently.
@@ -47,62 +48,35 @@ class ResumeProcessor:
                             "points": []
                         }
                     ]
-                },
-                {
-                    "title": "Education",
-                    "entries": [
-                        {
-                            "institution": "",
-                            "degree": "",
-                            "duration": {
-                                "start": "",
-                                "end": ""
-                            },
-                            "details": []
-                        }
-                    ]
-                },
-                {
-                    "title": "Skills",
-                    "categories": {
-                        "technical": [],
-                        "soft": [],
-                        "tools": []
-                    }
                 }
             ]
         }
+        
+        Return only the JSON, no additional text.
         """
 
     async def process_resume(self, text: str) -> Dict[str, Any]:
-        """Process resume text using DeepSeek API"""
+        """Process resume text using Claude API"""
         try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [
+            # Claude's API is synchronous, so we wrap it with sync_to_async
+            response = await sync_to_async(self.client.messages.create)(
+                model="claude-3-opus-20240229",
+                max_tokens=2000,
+                temperature=0.1,
+                messages=[
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": text}
-                ],
-                "temperature": 0.1,
-                "max_tokens": 2000
-            }
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.api_url, json=payload, headers=headers) as response:
-                    if response.status != 200:
-                        raise Exception(f"API request failed with status {response.status}")
-                    
-                    result = await response.json()
-                    structured_data = json.loads(result['choices'][0]['message']['content'])
-                    return structured_data
-
-        except json.JSONDecodeError:
-            raise Exception("Failed to parse LLM response")
+                ]
+            )
+            
+            # Parse the response content as JSON
+            try:
+                structured_data = json.loads(response.content)
+                return structured_data
+            except json.JSONDecodeError:
+                # If JSON parsing fails, the response might not be properly formatted
+                raise Exception("Failed to parse Claude's response as JSON")
+                
         except Exception as e:
             print(f"Error processing resume: {str(e)}")
             raise

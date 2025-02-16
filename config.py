@@ -4,9 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    # DeepSeek API Configuration
-    DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
-    DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+    # Claude API Configuration
+    CLAUDE_API_KEY = os.getenv('CLAUDE_API_KEY')
     
     # Flask Configuration
     UPLOAD_FOLDER = 'uploads'
@@ -14,4 +13,5 @@ class Config:
     ALLOWED_EXTENSIONS = {'pdf'}
     
     # Resume Processing Configuration
-    RESUME_CACHE_TIME = 3600  # Cache parsed resumes for 1 hour 
+    RESUME_CACHE_TIME = 3600  # Cache parsed resumes for 1 hour
+
