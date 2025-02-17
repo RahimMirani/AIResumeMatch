@@ -1,101 +1,124 @@
-from pdfminer.high_level import extract_text
-from pdfminer.layout import LAParams
-from pdfminer.pdfparser import PDFSyntaxError
+import pdfplumber
+from typing import Dict, List, Any
 import re
+from datetime import datetime
 
-def clean_text(text):
-    """Clean and structure the extracted text."""
-    # Remove excessive whitespace while preserving important line breaks
-    text = re.sub(r'\s*\n\s*\n\s*', '\n\n', text)
-    
-    # Try to identify sections (common resume section titles)
-    section_patterns = [
-        r'EDUCATION[:\s]',
-        r'EXPERIENCE[:\s]',
-        r'SKILLS[:\s]',
-        r'PROJECTS[:\s]',
-        r'WORK EXPERIENCE[:\s]',
-        r'PROFESSIONAL EXPERIENCE[:\s]',
-        r'CERTIFICATIONS[:\s]',
-        r'ACHIEVEMENTS[:\s]',
-        r'SUMMARY[:\s]',
-        r'OBJECTIVE[:\s]'
-    ]
-    
-    # Process the text line by line
-    lines = text.splitlines()
-    formatted_lines = []
-    current_section = ""
-    
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
+class ResumeParser:
+    def __init__(self):
+        self.section_headers = [
+            'Professional Experience',
+            'Education',
+            'Skills',
+            'Projects'
+        ]
+
+    def parse(self, pdf_path: str) -> Dict[str, Any]:
+        """Main parsing function"""
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                first_page = pdf.pages[0]
+                
+                # Extract text directly
+                text = first_page.extract_text()
+                lines = text.split('\n')
+                
+                # Print debug info
+                print("\n=== Extracted Lines ===")
+                for i, line in enumerate(lines):
+                    print(f"Line {i}: {line}")
+                
+                resume_data = {
+                    "personal_info": self._extract_personal_info(lines[:3]),
+                    "sections": self._extract_sections(lines[3:])
+                }
+                
+                return resume_data
+                
+        except Exception as e:
+            print(f"Error parsing PDF: {str(e)}")
+            raise
+
+    def _extract_personal_info(self, lines: List[str]) -> Dict[str, Any]:
+        """Extract personal information from top of resume"""
+        personal_info = {
+            "name": "",
+            "contact": {
+                "email": "",
+                "phone": "",
+                "location": ""
+            }
+        }
+
+        # First line is name
+        if lines:
+            personal_info["name"] = lines[0].strip()
+
+        # Process contact info
+        for line in lines[1:]:
+            # Split by vertical bar if present
+            parts = [p.strip() for p in line.split('|')]
+            for part in parts:
+                if '@' in part:
+                    personal_info["contact"]["email"] = part
+                elif any(c.isdigit() for c in part):
+                    personal_info["contact"]["phone"] = part
+                elif 'NC' in part or 'TX' in part:  # Location usually contains state
+                    personal_info["contact"]["location"] = part
+
+        return personal_info
+
+    def _extract_sections(self, lines: List[str]) -> List[Dict[str, Any]]:
+        """Extract sections from resume"""
+        sections = []
+        current_section = None
+        current_entry = None
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Check for section headers
+            if any(header in line for header in self.section_headers):
+                if current_section:
+                    if current_entry:
+                        current_section["entries"].append(current_entry)
+                    sections.append(current_section)
+                current_section = {"title": line, "entries": []}
+                current_entry = None
+                continue
             
-        # Check if this line is a section header
-        is_section = any(re.match(pattern, line, re.IGNORECASE) for pattern in section_patterns)
+            # Process entries
+            if current_section:
+                # Check for company/location/date line
+                if '|' in line and any(state in line for state in ['NC', 'TX']):
+                    if current_entry:
+                        current_section["entries"].append(current_entry)
+                    
+                    parts = line.split('|')
+                    current_entry = {
+                        "company": parts[0].strip(),
+                        "location": parts[1].strip() if len(parts) > 1 else "",
+                        "duration": parts[2].strip() if len(parts) > 2 else "",
+                        "position": "",
+                        "points": []
+                    }
+                # Check for position (usually follows company line)
+                elif current_entry and not current_entry["position"]:
+                    current_entry["position"] = line
+                # Check for bullet points
+                elif line.startswith('•') and current_entry:
+                    current_entry["points"].append(line.lstrip('•').strip())
         
-        if is_section:
-            current_section = line
-            formatted_lines.append(f"\n{line}")
-            formatted_lines.append("=" * len(line))
-        else:
-            # Check if line starts with a bullet point or could be a bullet point
-            if line.startswith('•') or line.startswith('-') or line.startswith('●'):
-                formatted_lines.append(f"• {line.lstrip('•-● ')}")
-            elif re.match(r'^\d+\.', line):
-                formatted_lines.append(f"• {line}")
-            else:
-                # If line is short and uppercase, it might be a header
-                if len(line) < 50 and line.isupper():
-                    formatted_lines.append(f"\n{line}")
-                else:
-                    # Preserve any existing line breaks and spacing
-                    formatted_lines.append(line)
-    
-    return '\n'.join(formatted_lines)
+        # Add final section
+        if current_section:
+            if current_entry:
+                current_section["entries"].append(current_entry)
+            sections.append(current_section)
+        
+        return sections
 
-def parse_pdf(file_path):
-    """
-    Parse a PDF file and extract its text content with improved formatting.
-    
-    Args:
-        file_path (str): Path to the PDF file
-        
-    Returns:
-        str: Extracted text from the PDF
-        
-    Raises:
-        PDFSyntaxError: If the PDF is invalid or corrupted
-        FileNotFoundError: If the file doesn't exist
-    """
-    try:
-        # Configure PDF parsing parameters
-        laparams = LAParams(
-            line_margin=0.5,  # Adjust line margin
-            word_margin=0.1,  # Adjust word margin
-            char_margin=2.0,  # Adjust character margin
-            boxes_flow=0.5,   # Adjust text flow between boxes
-            detect_vertical=True  # Better handle vertical text
-        )
-        
-        # Extract text with configured parameters
-        text = extract_text(
-            file_path,
-            laparams=laparams
-        )
-        
-        # Clean and structure the text
-        formatted_text = clean_text(text)
-        
-        # Add some spacing for better readability
-        formatted_text = f"\n{formatted_text.strip()}\n"
-        
-        return formatted_text
-    
-    except PDFSyntaxError:
-        raise Exception("Invalid or corrupted PDF file")
-    except FileNotFoundError:
-        raise Exception("File not found")
-    except Exception as e:
-        raise Exception(f"Error parsing PDF: {str(e)}") 
+def parse_pdf(filepath: str) -> Dict[str, Any]:
+    """Main function to parse PDF"""
+    parser = ResumeParser()
+    return parser.parse(filepath) 

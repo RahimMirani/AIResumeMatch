@@ -1,11 +1,8 @@
 from flask import Flask, request, jsonify, render_template, url_for
 from werkzeug.utils import secure_filename
 import os
-from pdf_parser import parse_pdf
-from resume_processor import ResumeProcessor
+from pdf_parser import ResumeParser  # Updated import
 from config import Config
-from asgiref.sync import async_to_sync
-import asyncio
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -20,12 +17,8 @@ app.config['STATIC_FOLDER'] = 'static'
 # Create uploads directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Initialize resume processor with error handling
-try:
-    resume_processor = ResumeProcessor()
-except Exception as e:
-    print(f"Error initializing resume processor: {e}")
-    raise
+# Initialize resume parser
+resume_parser = ResumeParser()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -55,38 +48,25 @@ def upload_resume():
         # Ensure directory exists
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         
-        # Debug print
-        print(f"Saving file to: {filepath}")
-        
         # Save file
         file.save(filepath)
         
         if not os.path.exists(filepath):
             return jsonify({'error': 'Failed to save file'}), 500
         
-        # Extract text from PDF
-        raw_text = parse_pdf(filepath)
-        
-        # Process with LangChain
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            structured_data = loop.run_until_complete(resume_processor.process_resume(raw_text))
+            # Parse the PDF using our parser
+            parsed_data = resume_parser.parse(filepath)
+            
+            return jsonify({
+                'message': 'Resume processed successfully',
+                'parsed_data': parsed_data  # This is what the frontend expects
+            })
+            
         finally:
-            loop.close()
-        
-        # Convert to HTML
-        formatted_html = resume_processor.format_for_display(structured_data)
-        
-        # Clean up - make sure file exists before trying to remove it
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        
-        return jsonify({
-            'message': 'Resume processed successfully',
-            'html': formatted_html,
-            'structured_data': structured_data
-        })
+            # Clean up - make sure file exists before trying to remove it
+            if os.path.exists(filepath):
+                os.remove(filepath)
     
     except Exception as e:
         print(f"Error in upload_resume: {str(e)}")

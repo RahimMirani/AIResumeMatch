@@ -4,26 +4,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resume Parser</title>
-    <link rel="stylesheet" type="text/css" href="/static/css/styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
-    <h1>Resume Parser</h1>
     <div class="upload-container">
+        <h2>Upload Resume</h2>
         <form id="uploadForm">
             <input type="file" name="resume" accept=".pdf" required>
-            <button type="submit">Upload and Parse</button>
+            <button type="submit">Parse Resume</button>
         </form>
     </div>
-    <div id="result" class="result">
-        <h3>Parsed Resume</h3>
-        <div class="actions">
-            <button id="editMode" class="action-btn">Toggle Edit Mode</button>
-            <button id="saveChanges" class="action-btn" style="display: none;">Save Changes</button>
-        </div>
-        <div id="parsedText" class="editable-content"></div>
-    </div>
-    <div id="error" class="error"></div>
 
-    <script src="/static/js/resume-parser.js"></script>
+    <div id="result" class="resume-container" style="display: none;">
+        <div class="header">
+            <h1 class="name"></h1>
+            <div class="contact-info"></div>
+        </div>
+        <div class="sections"></div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            const fileInput = document.querySelector('input[type="file"]');
+            formData.append('resume', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/upload-resume', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResume(data.parsed_data);
+                } else {
+                    alert(data.error || 'Upload failed');
+                }
+            } catch (error) {
+                alert('Error uploading file');
+            }
+        });
+
+        function displayResume(data) {
+            const result = document.getElementById('result');
+            
+            // Display name and contact info
+            result.querySelector('.name').textContent = data.personal_info.name;
+            
+            const contactInfo = result.querySelector('.contact-info');
+            const contact = data.personal_info.contact;
+            contactInfo.innerHTML = `
+                ${contact.email} | ${contact.phone} | ${contact.location}
+            `;
+
+            // Display sections
+            const sectionsContainer = result.querySelector('.sections');
+            sectionsContainer.innerHTML = data.sections.map(section => `
+                <div class="section">
+                    <h2>${section.title}</h2>
+                    ${section.entries.map(entry => `
+                        <div class="entry">
+                            <div class="entry-header">
+                                <span class="company">${entry.company}</span>
+                                <span class="location">${entry.location}</span>
+                                <span class="duration">${entry.duration}</span>
+                            </div>
+                            <div class="position">${entry.position}</div>
+                            <ul class="points">
+                                ${entry.points.map(point => `
+                                    <li>${point}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
+
+            result.style.display = 'block';
+        }
+    </script>
 </body>
 </html> 

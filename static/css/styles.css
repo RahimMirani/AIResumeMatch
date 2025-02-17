@@ -1,7 +1,15 @@
-/* Main Layout */
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    max-width: 1200px;  /* Further increased width */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 1000px;
     margin: 0 auto;
     padding: 20px;
     background-color: #f5f5f5;
@@ -9,12 +17,124 @@ body {
 
 /* Upload Container */
 .upload-container {
-    border: 2px dashed #ccc;
+    background: white;
     padding: 20px;
-    text-align: center;
-    margin: 20px 0;
-    background-color: white;
     border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+/* Resume Styling */
+.resume-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Personal Info Section */
+.personal-info {
+    text-align: center;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #eee;
+}
+
+.name {
+    font-size: 24px;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.contact-info {
+    color: #666;
+}
+
+/* Section Styling */
+.section {
+    margin-bottom: 30px;
+}
+
+.section h2 {
+    color: #2c3e50;
+    font-size: 18px;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+}
+
+/* Entry Styling */
+.entry {
+    margin-bottom: 20px;
+}
+
+.entry-header {
+    margin-bottom: 5px;
+}
+
+.company {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.location, .duration {
+    color: #666;
+    margin-left: 10px;
+}
+
+.position {
+    color: #34495e;
+    margin-bottom: 5px;
+}
+
+.points {
+    list-style: none;
+    padding-left: 20px;
+}
+
+.points li {
+    position: relative;
+    margin-bottom: 5px;
+    line-height: 1.4;
+}
+
+.points li:before {
+    content: "•";
+    position: absolute;
+    left: -15px;
+    color: #3498db;
+}
+
+/* Skills Section */
+.skills-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    list-style: none;
+}
+
+.skill-item {
+    background: #f8f9fa;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .contact-info {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .entry {
+        padding-left: 0;
+    }
 }
 
 /* Result Container */
@@ -79,14 +199,6 @@ h2.section-title {
 }
 
 /* Bullet Points */
-.bullet-point {
-    position: relative;
-    padding: 5px 10px;
-    margin: 5px 0;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
 .bullet-point:hover {
     background-color: #f5f5f5;
 }
@@ -162,4 +274,9 @@ button:hover {
 
 input[type="file"] {
     margin-bottom: 10px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 30px;
 } 
