@@ -111,3 +111,7 @@
 - Current implementation works but is cost-prohibitive
 - Need to balance functionality with API costs
 
+## February 19, 2025 - Code update 
+- Still stuck on resume pasring issue 
+- Want to make the uploaded resume interactive 
+
