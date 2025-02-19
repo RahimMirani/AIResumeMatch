@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify, render_template, url_for
+from flask_cors import CORS  # Add this import
 from werkzeug.utils import secure_filename
 import os
 from pdf_parser import ResumeParser  # Updated import
 from config import Config
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS
 app.config.from_object(Config)
 
 # Configure upload settings
@@ -41,38 +43,29 @@ def upload_resume():
         if not allowed_file(file.filename):
             return jsonify({'error': 'Invalid file type. Only PDF files are allowed'}), 400
         
-        # Create a unique filename to avoid conflicts
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         
-        # Ensure directory exists
-        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-        
-        # Save file
         file.save(filepath)
         
-        if not os.path.exists(filepath):
-            return jsonify({'error': 'Failed to save file'}), 500
-        
         try:
-            # Parse the PDF using our parser
             parsed_data = resume_parser.parse(filepath)
+            print("Parsed Data:", parsed_data)  # Debug print
             
-            return jsonify({
-                'message': 'Resume processed successfully',
-                'parsed_data': parsed_data  # This is what the frontend expects
-            })
+            response = {
+                'status': 'success',
+                'parsed_data': parsed_data
+            }
+            print("Sending Response:", response)  # Debug print
+            
+            return jsonify(response)
             
         finally:
-            # Clean up - make sure file exists before trying to remove it
             if os.path.exists(filepath):
                 os.remove(filepath)
     
     except Exception as e:
         print(f"Error in upload_resume: {str(e)}")
-        # If file exists, try to clean up
-        if 'filepath' in locals() and os.path.exists(filepath):
-            os.remove(filepath)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

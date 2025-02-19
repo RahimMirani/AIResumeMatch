@@ -1,7 +1,5 @@
 import pdfplumber
 from typing import Dict, List, Any
-import re
-from datetime import datetime
 
 class ResumeParser:
     def __init__(self):
@@ -17,15 +15,8 @@ class ResumeParser:
         try:
             with pdfplumber.open(pdf_path) as pdf:
                 first_page = pdf.pages[0]
-                
-                # Extract text directly
                 text = first_page.extract_text()
-                lines = text.split('\n')
-                
-                # Print debug info
-                print("\n=== Extracted Lines ===")
-                for i, line in enumerate(lines):
-                    print(f"Line {i}: {line}")
+                lines = [line.strip() for line in text.split('\n') if line.strip()]
                 
                 resume_data = {
                     "personal_info": self._extract_personal_info(lines[:3]),
@@ -36,33 +27,39 @@ class ResumeParser:
                 
         except Exception as e:
             print(f"Error parsing PDF: {str(e)}")
-            raise
+            return self._get_empty_structure()
+
+    def _get_empty_structure(self) -> Dict[str, Any]:
+        return {
+            "personal_info": {
+                "name": "",
+                "contact": {"email": "", "phone": "", "location": ""}
+            },
+            "sections": []
+        }
 
     def _extract_personal_info(self, lines: List[str]) -> Dict[str, Any]:
         """Extract personal information from top of resume"""
         personal_info = {
             "name": "",
-            "contact": {
-                "email": "",
-                "phone": "",
-                "location": ""
-            }
+            "contact": {"email": "", "phone": "", "location": ""}
         }
 
-        # First line is name
-        if lines:
-            personal_info["name"] = lines[0].strip()
+        if not lines:
+            return personal_info
 
-        # Process contact info
-        for line in lines[1:]:
-            # Split by vertical bar if present
-            parts = [p.strip() for p in line.split('|')]
+        # First line is name
+        personal_info["name"] = lines[0]
+
+        # Second line contains contact info
+        if len(lines) > 1:
+            parts = [p.strip() for p in lines[1].split('|')]
             for part in parts:
                 if '@' in part:
                     personal_info["contact"]["email"] = part
                 elif any(c.isdigit() for c in part):
                     personal_info["contact"]["phone"] = part
-                elif 'NC' in part or 'TX' in part:  # Location usually contains state
+                elif any(state in part for state in ['NC', 'TX']):
                     personal_info["contact"]["location"] = part
 
         return personal_info
@@ -72,50 +69,63 @@ class ResumeParser:
         sections = []
         current_section = None
         current_entry = None
-        
+        bullet_points = []
+
         for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-                
             # Check for section headers
-            if any(header in line for header in self.section_headers):
+            if line in self.section_headers:
                 if current_section:
+                    if current_entry and bullet_points:
+                        current_entry["points"].extend(bullet_points)
+                        bullet_points = []
                     if current_entry:
                         current_section["entries"].append(current_entry)
                     sections.append(current_section)
+                
                 current_section = {"title": line, "entries": []}
                 current_entry = None
                 continue
-            
-            # Process entries
-            if current_section:
-                # Check for company/location/date line
-                if '|' in line and any(state in line for state in ['NC', 'TX']):
-                    if current_entry:
-                        current_section["entries"].append(current_entry)
-                    
-                    parts = line.split('|')
-                    current_entry = {
-                        "company": parts[0].strip(),
-                        "location": parts[1].strip() if len(parts) > 1 else "",
-                        "duration": parts[2].strip() if len(parts) > 2 else "",
-                        "position": "",
-                        "points": []
-                    }
-                # Check for position (usually follows company line)
-                elif current_entry and not current_entry["position"]:
-                    current_entry["position"] = line
-                # Check for bullet points
-                elif line.startswith('•') and current_entry:
-                    current_entry["points"].append(line.lstrip('•').strip())
-        
+
+            if not current_section:
+                continue
+
+            # Handle company lines (contains location)
+            if '|' in line and any(state in line for state in ['NC', 'TX']):
+                if current_entry and bullet_points:
+                    current_entry["points"].extend(bullet_points)
+                    bullet_points = []
+                if current_entry:
+                    current_section["entries"].append(current_entry)
+
+                parts = [p.strip() for p in line.split('|')]
+                current_entry = {
+                    "company": parts[0],
+                    "location": parts[1] if len(parts) > 1 else "",
+                    "duration": parts[2] if len(parts) > 2 else "",
+                    "position": "",
+                    "points": []
+                }
+                continue
+
+            # Handle position line (follows company line)
+            if current_entry and not current_entry["position"]:
+                current_entry["position"] = line
+                continue
+
+            # Handle bullet points
+            if line.startswith('•') or line.startswith('\uf0b7'):
+                bullet_points.append(line.lstrip('•').lstrip('\uf0b7').strip())
+            elif bullet_points:  # Continuation of previous bullet point
+                bullet_points[-1] += ' ' + line
+
         # Add final section
         if current_section:
             if current_entry:
+                if bullet_points:
+                    current_entry["points"].extend(bullet_points)
                 current_section["entries"].append(current_entry)
             sections.append(current_section)
-        
+
         return sections
 
 def parse_pdf(filepath: str) -> Dict[str, Any]:

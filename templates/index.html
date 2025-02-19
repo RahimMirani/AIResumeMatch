@@ -24,6 +24,61 @@
     </div>
 
     <script>
+        function displayResume(data) {
+            console.log('Displaying resume data:', data);  // Debug log
+            const result = document.getElementById('result');
+            
+            try {
+                // Display name and contact info
+                result.querySelector('.name').textContent = data.personal_info.name;
+                
+                const contactInfo = result.querySelector('.contact-info');
+                const contact = data.personal_info.contact;
+                contactInfo.innerHTML = `
+                    ${contact.email} | ${contact.phone} | ${contact.location}
+                `;
+
+                // Display sections
+                const sectionsContainer = result.querySelector('.sections');
+                sectionsContainer.innerHTML = data.sections.map(section => {
+                    console.log('Processing section:', section);  // Debug log
+                    const entries = section.entries || [];
+                    return `
+                        <div class="section">
+                            <h2>${section.title}</h2>
+                            ${entries.map(entry => {
+                                console.log('Processing entry:', entry);  // Debug log
+                                return `
+                                    <div class="entry">
+                                        ${entry.company ? `
+                                            <div class="entry-header">
+                                                <span class="company">${entry.company}</span>
+                                                ${entry.location ? `<span class="location">${entry.location}</span>` : ''}
+                                                ${entry.duration ? `<span class="duration">${entry.duration}</span>` : ''}
+                                            </div>
+                                        ` : ''}
+                                        ${entry.position ? `<div class="position">${entry.position}</div>` : ''}
+                                        ${entry.points && entry.points.length > 0 ? `
+                                            <ul class="points">
+                                                ${entry.points.map(point => `
+                                                    <li>${point}</li>
+                                                `).join('')}
+                                            </ul>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }).join('');
+
+                result.style.display = 'block';
+            } catch (error) {
+                console.error('Error displaying resume:', error);  // Debug log
+                alert('Error displaying resume');
+            }
+        }
+
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData();
@@ -31,59 +86,40 @@
             formData.append('resume', fileInput.files[0]);
 
             try {
+                console.log('Uploading file...');
                 const response = await fetch('/upload-resume', {
                     method: 'POST',
                     body: formData
                 });
-                const data = await response.json();
+                console.log('Response status:', response.status);
                 
-                if (response.ok) {
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new TypeError("Response was not JSON");
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (!data) {
+                    throw new Error('No data received');
+                }
+                
+                if (!data.parsed_data) {
+                    throw new Error('No parsed_data in response');
+                }
+                
+                if (response.ok && data.parsed_data) {
                     displayResume(data.parsed_data);
                 } else {
+                    console.error('Error:', data.error);
                     alert(data.error || 'Upload failed');
                 }
             } catch (error) {
-                alert('Error uploading file');
+                console.error('Error details:', error);
+                alert('Error uploading file: ' + error.message);
             }
         });
-
-        function displayResume(data) {
-            const result = document.getElementById('result');
-            
-            // Display name and contact info
-            result.querySelector('.name').textContent = data.personal_info.name;
-            
-            const contactInfo = result.querySelector('.contact-info');
-            const contact = data.personal_info.contact;
-            contactInfo.innerHTML = `
-                ${contact.email} | ${contact.phone} | ${contact.location}
-            `;
-
-            // Display sections
-            const sectionsContainer = result.querySelector('.sections');
-            sectionsContainer.innerHTML = data.sections.map(section => `
-                <div class="section">
-                    <h2>${section.title}</h2>
-                    ${section.entries.map(entry => `
-                        <div class="entry">
-                            <div class="entry-header">
-                                <span class="company">${entry.company}</span>
-                                <span class="location">${entry.location}</span>
-                                <span class="duration">${entry.duration}</span>
-                            </div>
-                            <div class="position">${entry.position}</div>
-                            <ul class="points">
-                                ${entry.points.map(point => `
-                                    <li>${point}</li>
-                                `).join('')}
-                            </ul>
-                        </div>
-                    `).join('')}
-                </div>
-            `).join('');
-
-            result.style.display = 'block';
-        }
     </script>
 </body>
 </html> 
