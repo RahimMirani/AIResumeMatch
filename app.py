@@ -50,15 +50,30 @@ def upload_resume():
         
         try:
             parsed_data = resume_parser.parse(filepath)
-            print("Parsed Data:", parsed_data)  # Debug print
             
-            response = {
+            # Add default sections if missing
+            if not any(section['title'] == 'Professional Experience' for section in parsed_data['sections']):
+                parsed_data['sections'].append({
+                    'title': 'Professional Experience',
+                    'entries': []
+                })
+            
+            if not any(section['title'] == 'Education' for section in parsed_data['sections']):
+                parsed_data['sections'].append({
+                    'title': 'Education',
+                    'entries': []
+                })
+            
+            if not any(section['title'] == 'Skills' for section in parsed_data['sections']):
+                parsed_data['sections'].append({
+                    'title': 'Skills',
+                    'entries': []
+                })
+            
+            return jsonify({
                 'status': 'success',
                 'parsed_data': parsed_data
-            }
-            print("Sending Response:", response)  # Debug print
-            
-            return jsonify(response)
+            })
             
         finally:
             if os.path.exists(filepath):
