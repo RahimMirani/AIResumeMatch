@@ -11,6 +11,19 @@ class ResumeParser:
             'PROJECTS',
             'PROFESSIONAL EXPERIENCE'
         ]
+        # Expanded bullet point patterns
+        self.bullet_patterns = [
+            r'^\s*•\s+',  # Standard bullet
+            r'^\s*-\s+',  # Dash bullet
+            r'^\s*\*\s+', # Asterisk bullet
+            r'^\s*\u2022\s+',  # Unicode bullet
+            r'^\s*\u2023\s+',  # Triangle bullet
+            r'^\s*\u25E6\s+',  # White bullet
+            r'^\s*\u25AA\s+',  # Black small square
+            r'^\s*\d+\.\s+',   # Numbered list (1. 2. etc)
+            r'^\s*\[\s*\d+\s*\]\s+',  # [1] style
+            r'^\s*o\s+'    # 'o' as bullet
+        ]
 
     def parse(self, pdf_path: str) -> Dict[str, Any]:
         """Main parsing function"""
@@ -42,6 +55,24 @@ class ResumeParser:
         except Exception as e:
             print(f"Error parsing PDF: {str(e)}")
             return self._get_empty_structure()
+
+    def _is_bullet_point(self, line: str) -> bool:
+        """Check if a line is a bullet point using various patterns"""
+        for pattern in self.bullet_patterns:
+            if re.match(pattern, line):
+                return True
+        
+        # Special case for indented lines that might be continuation of bullets
+        if line.startswith('    ') and len(line) > 5:
+            return True
+            
+        return False
+    
+    def _clean_bullet_point(self, line: str) -> str:
+        """Remove bullet point marker and clean the text"""
+        for pattern in self.bullet_patterns:
+            line = re.sub(pattern, '', line)
+        return line.strip()
 
     def _get_empty_structure(self) -> Dict[str, Any]:
         return {
@@ -122,6 +153,59 @@ class ResumeParser:
                 "entries": self._parse_section_content(current_section, section_content)
             })
         
+        # If no sections were found, create default sections from the content
+        if not sections and lines:
+            # Attempt to detect sections based on line formatting
+            sections = self._detect_implicit_sections(lines)
+        
+        return sections
+
+    def _detect_implicit_sections(self, lines: List[str]) -> List[Dict[str, Any]]:
+        """Detect sections that aren't explicitly labeled"""
+        # This is a fallback when no explicit sections are found
+        
+        # Try to find experience section
+        exp_entries = []
+        for i, line in enumerate(lines):
+            if re.search(r'(job|work|employment|position)', line.lower()):
+                # Found potential experience entry
+                entry = {
+                    "company": line,
+                    "position": lines[i+1] if i+1 < len(lines) else "",
+                    "location": "",
+                    "duration": "",
+                    "points": []
+                }
+                
+                # Look for bullet points following this entry
+                j = i + 2
+                while j < len(lines) and (self._is_bullet_point(lines[j]) or lines[j].startswith('    ')):
+                    entry["points"].append(self._clean_bullet_point(lines[j]))
+                    j += 1
+                
+                exp_entries.append(entry)
+        
+        # Create default sections
+        sections = []
+        if exp_entries:
+            sections.append({
+                "title": "EXPERIENCE",
+                "entries": exp_entries
+            })
+        
+        # Add remaining lines as a generic section
+        if lines:
+            sections.append({
+                "title": "ADDITIONAL INFORMATION",
+                "entries": [{
+                    "company": "",
+                    "position": "",
+                    "location": "",
+                    "duration": "",
+                    "points": [line for line in lines if self._is_bullet_point(line)]
+                }]
+            })
+        
         return sections
 
     def _parse_section_content(self, section_title: str, content: List[str]) -> List[Dict[str, Any]]:
@@ -142,7 +226,7 @@ class ResumeParser:
         
         for line in content:
             # Check if line is a university/school name
-            if re.search(r'University|College|School', line):
+            if re.search(r'University|College|School', line) and not self._is_bullet_point(line):
                 if current_entry:
                     entries.append(current_entry)
                 
@@ -163,15 +247,15 @@ class ResumeParser:
                     "points": []
                 }
             elif current_entry:
+                # Check if line is a bullet point
+                if self._is_bullet_point(line):
+                    current_entry["points"].append(self._clean_bullet_point(line))
                 # Check if line contains a degree
-                if "Bachelor" in line or "Master" in line or "Associate" in line or "Degree" in line:
+                elif "Bachelor" in line or "Master" in line or "Associate" in line or "Degree" in line:
                     current_entry["position"] = line
                 # Check if line contains dates
                 elif re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}', line):
                     current_entry["duration"] = line
-                # Otherwise, add as bullet point
-                elif line.startswith('•'):
-                    current_entry["points"].append(line.lstrip('•').strip())
         
         # Add final entry
         if current_entry:
@@ -185,9 +269,25 @@ class ResumeParser:
         current_entry = None
         bullet_points = []
         
-        for line in content:
-            # Check if line is a company name (often followed by location)
-            if re.search(r'([A-Za-z\s]+),\s*([A-Z]{2})', line) and not line.startswith('•'):
+        i = 0
+        while i < len(content):
+            line = content[i]
+            
+            # Check if line is a bullet point
+            if self._is_bullet_point(line):
+                if current_entry:
+                    bullet_points.append(self._clean_bullet_point(line))
+                else:
+                    # Create a default entry if bullet points come before any entry
+                    current_entry = {
+                        "company": "Professional Experience",
+                        "location": "",
+                        "position": "",
+                        "duration": "",
+                        "points": [self._clean_bullet_point(line)]
+                    }
+            # Check if line might be a company name (not a bullet point)
+            elif not self._is_bullet_point(line) and len(line) < 60:  # Companies are usually short lines
                 # Save previous entry
                 if current_entry:
                     if bullet_points:
@@ -195,7 +295,7 @@ class ResumeParser:
                     entries.append(current_entry)
                     bullet_points = []
                 
-                # Extract location
+                # Extract location if present
                 location_match = re.search(r'([A-Za-z\s]+),\s*([A-Z]{2})', line)
                 location = location_match.group(0) if location_match else ""
                 
@@ -211,20 +311,20 @@ class ResumeParser:
                     "duration": "",
                     "points": []
                 }
-            # Check if line contains a job title
-            elif current_entry and not current_entry["position"] and not line.startswith('•'):
-                # Check if line contains dates
-                date_match = re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}', line)
-                if date_match:
-                    current_entry["duration"] = line
-                else:
-                    current_entry["position"] = line
-            # Check if line is a bullet point
-            elif line.startswith('•'):
-                bullet_points.append(line.lstrip('•').strip())
-            # Check if line is a date range
-            elif current_entry and re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}', line):
-                current_entry["duration"] = line
+                
+                # Check if next line might be a position or date
+                if i+1 < len(content) and not self._is_bullet_point(content[i+1]):
+                    next_line = content[i+1]
+                    # Check if it's a date
+                    if re.search(r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}', next_line):
+                        current_entry["duration"] = next_line
+                        i += 1  # Skip this line on next iteration
+                    else:
+                        # Assume it's a position
+                        current_entry["position"] = next_line
+                        i += 1  # Skip this line on next iteration
+            
+            i += 1
         
         # Add final entry
         if current_entry:
@@ -246,11 +346,14 @@ class ResumeParser:
         }
         
         for line in content:
-            if line.startswith('•'):
-                skills_entry["points"].append(line.lstrip('•').strip())
+            if self._is_bullet_point(line):
+                skills_entry["points"].append(self._clean_bullet_point(line))
             else:
-                # If not a bullet point, add the whole line as a skill
-                skills_entry["points"].append(line)
+                # For skills, even non-bulleted lines can be skills
+                parts = re.split(r'[,;:|]', line)
+                for part in parts:
+                    if part.strip():
+                        skills_entry["points"].append(part.strip())
         
         return [skills_entry]
 
@@ -266,11 +369,13 @@ class ResumeParser:
         }
         
         for line in content:
-            if line.startswith('•'):
-                entry["points"].append(line.lstrip('•').strip())
+            if self._is_bullet_point(line):
+                entry["points"].append(self._clean_bullet_point(line))
             else:
-                # If not a bullet point, add as a separate point
-                entry["points"].append(line)
+                # For non-bullet points in generic sections, add as separate points
+                # but only if they're not too long (likely title lines)
+                if len(line) < 60:
+                    entry["points"].append(line.strip())
         
         return [entry]
 
