@@ -12,6 +12,10 @@ from reportlab.lib.units import inch
 import uuid
 import html
 import re
+import shutil
+from datetime import datetime, timedelta
+import threading
+import time
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS
@@ -203,6 +207,63 @@ def generate_pdf():
         error_details = traceback.format_exc()
         print(f"Error generating PDF: {str(e)}\n{error_details}")
         return jsonify({'error': f'Error generating PDF: {str(e)}'}), 500
+
+def cleanup_old_files(folder, max_age_hours=24):
+    """Remove files older than the specified hours from a folder"""
+    try:
+        now = datetime.now()
+        count = 0
+        
+        if not os.path.exists(folder):
+            print(f"Folder {folder} does not exist, skipping cleanup")
+            return 0
+        
+        for filename in os.listdir(folder):
+            filepath = os.path.join(folder, filename)
+            if os.path.isfile(filepath):
+                file_modified = datetime.fromtimestamp(os.path.getmtime(filepath))
+                
+                if now - file_modified > timedelta(hours=max_age_hours):
+                    try:
+                        os.remove(filepath)
+                        count += 1
+                    except Exception as e:
+                        print(f"Error removing file {filepath}: {str(e)}")
+        
+        print(f"Cleanup completed: removed {count} files older than {max_age_hours} hours")
+        return count
+    except Exception as e:
+        print(f"Error during cleanup: {str(e)}")
+        return 0
+
+def periodic_cleanup(folder, interval_hours=6, max_age_hours=24):
+    """Run cleanup at regular intervals"""
+    while True:
+        time.sleep(interval_hours * 3600)  # Convert hours to seconds
+        print(f"Running scheduled cleanup...")
+        cleanup_old_files(folder, max_age_hours)
+
+@app.route('/admin/cleanup', methods=['POST'])
+def manual_cleanup():
+    """Manually trigger cleanup via API endpoint"""
+    try:
+        max_age_hours = request.json.get('max_age_hours', 24) if request.json else 24
+        count = cleanup_old_files(app.config['UPLOAD_FOLDER'], max_age_hours)
+        return jsonify({'status': 'success', 'files_removed': count})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Run cleanup at startup
+print("Cleaning up old files on startup...")
+cleanup_old_files(UPLOAD_FOLDER)
+
+# Start periodic cleanup in a background thread
+cleanup_thread = threading.Thread(
+    target=periodic_cleanup, 
+    args=(UPLOAD_FOLDER, 6, 24),  # Clean every 6 hours, remove files older than 24 hours
+    daemon=True
+)
+cleanup_thread.start()
 
 if __name__ == '__main__':
     app.run(debug=True) 
