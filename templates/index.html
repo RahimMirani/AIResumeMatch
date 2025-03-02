@@ -62,8 +62,20 @@
             <div class="preview-header">
                 <h3>Resume Preview</h3>
             </div>
-            <div id="resume-preview" class="resume-preview">
-                <!-- Resume preview will be rendered here -->
+            <div class="view-modes">
+                <button id="editModeBtn" class="mode-btn active">Edit Mode</button>
+                <button id="originalPdfBtn" class="mode-btn">Original PDF</button>
+                <button id="generatePdfBtn" class="mode-btn">Generate PDF Preview</button>
+            </div>
+
+            <div id="edit-preview" class="preview-container active">
+                <div id="resume-preview" class="resume-preview">
+                    <!-- Preview content will be generated here -->
+                </div>
+            </div>
+
+            <div id="pdf-preview" class="preview-container">
+                <iframe id="pdf-iframe" class="pdf-viewer" src="" frameborder="0"></iframe>
             </div>
         </div>
     </div>

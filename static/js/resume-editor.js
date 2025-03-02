@@ -3,6 +3,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let sectionCounter = 0;
     let entryCounter = 0;
     let pointCounter = 0;
+    let currentPdfUrl = null;
+    let generatedPdfUrl = null;
     
     // DOM elements
     const sectionsContainer = document.getElementById('sections-container');
@@ -27,7 +29,99 @@ document.addEventListener('DOMContentLoaded', function() {
         addSection();
     });
     
-    // Handle form submission
+    // Add these event listeners after the other listeners
+    const editModeBtn = document.getElementById('editModeBtn');
+    const pdfModeBtn = document.getElementById('pdfModeBtn');
+    const editPreview = document.getElementById('edit-preview');
+    const pdfPreview = document.getElementById('pdf-preview');
+    const pdfIframe = document.getElementById('pdf-iframe');
+    
+    // Add after the other event listeners
+    const originalPdfBtn = document.getElementById('originalPdfBtn');
+    const generatePdfBtn = document.getElementById('generatePdfBtn');
+    
+    editModeBtn.addEventListener('click', function() {
+        editModeBtn.classList.add('active');
+        originalPdfBtn.classList.remove('active');
+        generatePdfBtn.classList.remove('active');
+        editPreview.classList.add('active');
+        pdfPreview.classList.remove('active');
+    });
+    
+    originalPdfBtn.addEventListener('click', function() {
+        if (currentPdfUrl) {
+            pdfIframe.src = currentPdfUrl;
+            originalPdfBtn.classList.add('active');
+            editModeBtn.classList.remove('active');
+            generatePdfBtn.classList.remove('active');
+            pdfPreview.classList.add('active');
+            editPreview.classList.remove('active');
+        } else {
+            alert('No original PDF available. Please upload a resume first.');
+        }
+    });
+    
+    generatePdfBtn.addEventListener('click', async function() {
+        try {
+            // Show loading state
+            generatePdfBtn.textContent = 'Generating...';
+            generatePdfBtn.disabled = true;
+            
+            // Get the HTML content from the edit preview
+            const previewContent = document.getElementById('resume-preview').innerHTML;
+            
+            // Wrap in proper HTML structure
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Resume</title>
+                </head>
+                <body>
+                    ${previewContent}
+                </body>
+                </html>
+            `;
+            
+            // Send to server for PDF generation
+            const response = await fetch('/generate-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ html: htmlContent })
+            });
+            
+            if (!response.ok) {
+                throw new Error('PDF generation failed');
+            }
+            
+            const data = await response.json();
+            
+            // Update PDF viewer with the new PDF
+            if (data.pdf_filename) {
+                generatedPdfUrl = `/pdf/${data.pdf_filename}`;
+                pdfIframe.src = generatedPdfUrl;
+                
+                // Switch to PDF view
+                originalPdfBtn.classList.remove('active');
+                editModeBtn.classList.remove('active');
+                generatePdfBtn.classList.add('active');
+                pdfPreview.classList.add('active');
+                editPreview.classList.remove('active');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error generating PDF: ' + error.message);
+        } finally {
+            // Reset button
+            generatePdfBtn.textContent = 'Generate PDF Preview';
+            generatePdfBtn.disabled = false;
+        }
+    });
+    
+    // Update the form submission handler to display the PDF
     document.getElementById('uploadForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         const formData = new FormData();
@@ -48,6 +142,15 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.parsed_data) {
                 populateEditor(data.parsed_data);
                 updatePreview();
+                
+                // Set the PDF URL and show it
+                if (data.pdf_filename) {
+                    currentPdfUrl = `/pdf/${data.pdf_filename}`;
+                    pdfIframe.src = currentPdfUrl;
+                    
+                    // Automatically switch to PDF view
+                    originalPdfBtn.click();
+                }
             }
         } catch (error) {
             console.error('Error:', error);
