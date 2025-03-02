@@ -170,3 +170,67 @@
    - Implement export to PDF feature
    - Create user accounts for saving multiple resumes
 
+## March 2, 2025 - PDF Handling Improvements and File Management
+
+### PDF Viewing and Generation
+1. Enhanced PDF Viewing Capabilities
+   - Added ability to view original uploaded PDF in the application
+   - Implemented toggle between edit mode and PDF viewing mode
+   - Created a clean, professional PDF viewer interface
+
+2. PDF Generation Feature
+   - Added functionality to generate PDFs from edited resume content
+   - Implemented ReportLab for PDF generation with professional formatting
+   - Created custom styling for generated PDFs to match resume standards
+   - Added "Generate PDF Preview" button for real-time PDF creation
+
+### Parser Improvements
+1. Enhanced Bullet Point Detection
+   - Improved PDF parser to recognize various bullet point formats (•, -, *, numbered lists)
+   - Added support for indented text that might be continuations of bullet points
+   - Created helper methods to identify and clean bullet points
+   - Enhanced section parsing to better handle bullet points within entries
+
+2. Resume Structure Recognition
+   - Improved detection of resume sections (Education, Experience, Skills)
+   - Enhanced parsing of company names, positions, and dates
+   - Better handling of contact information including LinkedIn and GitHub profiles
+   - Added fallback methods for detecting implicit sections
+
+### UI and Layout Enhancements
+1. Full-Width Layout
+   - Redesigned the interface to utilize the full browser width
+   - Optimized the balance between editor and preview areas
+   - Improved responsive behavior for different screen sizes
+   - Enhanced header styling and container layouts
+
+2. View Mode Controls
+   - Added toggle buttons for different viewing modes (Edit, Original PDF, Generated PDF)
+   - Implemented smooth transitions between viewing modes
+   - Created visual indicators for the active viewing mode
+
+### Technical Improvements
+1. File Management System
+   - Implemented automatic cleanup of uploaded and generated PDFs
+   - Added scheduled cleanup to run every 6 hours (removing files older than 24 hours)
+   - Created startup cleanup to manage files when the server starts
+   - Added manual cleanup endpoint for administrative control
+   - Updated .gitignore to exclude uploaded files from version control
+
+2. Error Handling
+   - Enhanced error reporting for PDF parsing and generation
+   - Added detailed logging for debugging issues
+   - Improved user feedback for error conditions
+   - Created more robust HTML parsing for PDF generation
+
+### Next Steps
+1. Resume Comparison with Job Descriptions
+   - Implement text analysis to compare resume content with job descriptions
+   - Add keyword extraction and matching functionality
+   - Create visualization of match percentage by section
+
+2. User Experience Enhancements
+   - Add ability to save multiple versions of a resume
+   - Implement user accounts for persistent storage
+   - Create templates for different resume styles
+
